@@ -1,0 +1,79 @@
+import dash
+from dash import html
+from dash import dcc
+from dash.dependencies import Input, Output
+import pandas as pd
+import plotly.express as px
+
+# Load the data
+df = pd.read_csv("https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBM-DS0321EN-SkillsNetwork/datasets/spacex_launch_dash.csv")
+
+# Convert payload mass from floats to integers
+df['Payload Mass (kg)'] = df['Payload Mass (kg)'].astype(int)
+
+# Initialize the app
+app = dash.Dash(__name__)
+
+# Define the app layout
+app.layout = html.Div([
+    html.H1("SpaceX Launch Dashboard"),
+    html.Div([
+        html.Label("Select a Launch Site:"),
+        dcc.Dropdown(
+            id="site-dropdown",
+            options=[
+                {"label": site, "value": site} for site in df["Launch Site"].unique()
+            ],
+            value="All Sites",
+            clearable=False
+        )
+    ]),
+    html.Div([
+        html.Div([
+            dcc.Graph(id="success-pie-chart")
+        ], className="six columns"),
+        html.Div([
+            dcc.RangeSlider(
+                id="payload-slider",
+                min=min(df["Payload Mass (kg)"]),
+                max=max(df["Payload Mass (kg)"]),
+                step=1000,
+                marks={i: str(i) for i in range(min(df["Payload Mass (kg)"]), max(df["Payload Mass (kg)"])+1, 5000)},
+                value=[min(df["Payload Mass (kg)"]), max(df["Payload Mass (kg)"])]
+            ),
+            dcc.Graph(id="success-payload-scatter-chart")
+        ], className="six columns")
+    ], className="row")
+])
+
+# Define callback to update success-pie-chart based on site-dropdown selection
+@app.callback(
+    Output("success-pie-chart", "figure"),
+    [Input("site-dropdown", "value")]
+)
+def update_pie_chart(selected_site):
+    if selected_site == "All Sites":
+        fig = px.pie(df, names="Launch Site", values="class", title="Success Rate by Launch Site")
+    else:
+        filtered_df = df[df["Launch Site"] == selected_site]
+        fig = px.pie(filtered_df, names="class", title=f"Success vs. Failed Counts for {selected_site}")
+    return fig
+
+# Define callback to update success-payload-scatter-chart based on site-dropdown and payload-slider selections
+@app.callback(
+    Output("success-payload-scatter-chart", "figure"),
+    [Input("site-dropdown", "value"),
+     Input("payload-slider", "value")]
+)
+def update_scatter_chart(selected_site, selected_payload_range):
+    filtered_df = df[(df["Payload Mass (kg)"] >= selected_payload_range[0]) & (df["Payload Mass (kg)"] <= selected_payload_range[1])]
+    if selected_site == "All Sites":
+        fig = px.scatter(filtered_df, x="Payload Mass (kg)", y="class", color="Booster Version Category", title="Payload vs. Outcome")
+    else:
+        filtered_df = filtered_df[filtered_df["Launch Site"] == selected_site]
+        fig = px.scatter(filtered_df, x="Payload Mass (kg)", y="class", color="Booster Version Category", title=f"Payload vs. Outcome for {selected_site}")
+    return fig
+
+# Run the app
+if __name__ == "__main__":
+    app.run_server(debug=True)
