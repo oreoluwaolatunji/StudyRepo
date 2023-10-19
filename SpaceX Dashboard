@@ -14,6 +14,9 @@ df['Payload Mass (kg)'] = df['Payload Mass (kg)'].astype(int)
 # Initialize the app
 app = dash.Dash(__name__)
 
+site_options = [{'label': site, 'value': site} for site in df['Launch Site'].unique()]
+site_options.insert(0, {'label': 'All Sites', 'value': 'All Sites'})
+
 # Define the app layout
 app.layout = html.Div([
     html.H1("SpaceX Launch Dashboard"),
@@ -21,9 +24,7 @@ app.layout = html.Div([
         html.Label("Select a Launch Site:"),
         dcc.Dropdown(
             id="site-dropdown",
-            options=[
-                {"label": site, "value": site} for site in df["Launch Site"].unique()
-            ],
+            options=site_options,
             value="All Sites",
             clearable=False
         )
